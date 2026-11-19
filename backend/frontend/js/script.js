@@ -269,6 +269,10 @@ async function loadSessionMessages(sessionId) {
     if (response.ok) {
       const messagesList = await response.json();
       activeSessionId = sessionId;
+      localStorage.setItem(getActiveSessionKey(), sessionId);
+      if (activeSocket) activeSocket.close();
+      activeSocket = null;
+      socketSessionId = null;
       if (messages) {
         messages.innerHTML = "";
         if (messagesList.length === 0) {
@@ -299,6 +303,10 @@ async function deleteSession(sessionId) {
       await loadUserSessions();
       if (activeSessionId === sessionId) {
         activeSessionId = null;
+        localStorage.removeItem(getActiveSessionKey());
+        if (activeSocket) activeSocket.close();
+        activeSocket = null;
+        socketSessionId = null;
         if (messages) {
           messages.innerHTML = `<div class="welcome-message"><span class="mini-logo">N</span><h1>What can I help with?</h1><p>Start a new conversation by typing below or switching to voice.</p></div>`;
         }
@@ -441,8 +449,6 @@ function toggleVoice() {
     if (window.NOTAudio) {
       window.NOTAudio.startListening((text) => {
         if (text) {
-          $(".welcome-message")?.remove();
-          createMessage("user", text);
           sendMessageToBackend(text);
         }
       });
@@ -512,71 +518,99 @@ async function speakText(text) {
 }
 
 let activeSessionId = null;
+let activeSocket = null;
+let socketSessionId = null;
+let pendingTurn = null;
+
+function getActiveSessionKey() {
+  const uid = (typeof firebase !== "undefined" && firebase.auth?.().currentUser?.uid) || "default";
+  return `not_active_session_${uid}`;
+}
+
+async function ensureActiveSession(token) {
+  if (activeSessionId) return activeSessionId;
+  const savedId = localStorage.getItem(getActiveSessionKey());
+  if (savedId) {
+    activeSessionId = savedId;
+    return activeSessionId;
+  }
+  const response = await fetch(`${API_ORIGIN}/api/session`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error("Could not create chat session");
+  const data = await response.json();
+  if (!data.session_id) throw new Error("Server returned no session ID");
+  activeSessionId = data.session_id;
+  localStorage.setItem(getActiveSessionKey(), activeSessionId);
+  return activeSessionId;
+}
+
+function connectChatSocket(sessionId, token) {
+  if (activeSocket && socketSessionId === sessionId && activeSocket.readyState === WebSocket.OPEN) {
+    return Promise.resolve(activeSocket);
+  }
+  if (activeSocket) activeSocket.close();
+  const url = `${WS_PROTOCOL}//${window.location.host}/ws/${sessionId}?token=${encodeURIComponent(token)}`;
+  const socket = new WebSocket(url);
+  activeSocket = socket;
+  socketSessionId = sessionId;
+
+  return new Promise((resolve, reject) => {
+    socket.onopen = () => resolve(socket);
+    socket.onerror = () => reject(new Error("WebSocket connection failed"));
+    socket.onclose = () => {
+      if (activeSocket === socket) {
+        activeSocket = null;
+        socketSessionId = null;
+      }
+    };
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      const turn = pendingTurn;
+      if (!turn) return;
+      if (data.type === "token") {
+        turn.textDiv.textContent += data.text;
+        turn.response += data.text;
+        if (messages) messages.scrollTop = messages.scrollHeight;
+      } else if (data.type === "end") {
+        pendingTurn = null;
+        speakText(turn.response);
+        loadUserSessions();
+      } else if (data.type === "error") {
+        turn.textDiv.textContent += ` [Error: ${data.message}]`;
+      }
+    };
+  });
+}
 
 async function sendMessageToBackend(text) {
   const clean = text.trim();
   if (!clean) return;
-
+  if (pendingTurn) {
+    showToast("Wait for NOT to finish the current reply.");
+    return;
+  }
   $(".welcome-message")?.remove();
   createMessage("user", clean);
-
   const assistantArticle = createMessage("assistant", "");
   const textDiv = assistantArticle.querySelector(".message-text");
-  let accumulatedResponse = "";
-
   const token = localStorage.getItem("firebase_id_token") || "dummy-dev-token";
-  
-  // Register session on backend first so it never throws 404 or foreign key errors
+
   try {
-    const sessRes = await fetch(`${API_ORIGIN}/api/session`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
-      }
-    });
-    if (sessRes.ok) {
-      const sessData = await sessRes.json();
-      if (sessData.session_id) {
-        activeSessionId = sessData.session_id;
-      }
-    }
-  } catch (e) {
-    console.error("Session creation prefix error:", e);
+    const sessionId = await ensureActiveSession(token);
+    const socket = await connectChatSocket(sessionId, token);
+    pendingTurn = { textDiv, response: "" };
+    socket.send(JSON.stringify({
+      text: clean,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    }));
+  } catch (error) {
+    pendingTurn = null;
+    textDiv.textContent = "Connection error: " + error.message;
+    console.error("Chat send failed:", error);
   }
-
-  const wsUrl = `${WS_PROTOCOL}//${window.location.host}/ws/${activeSessionId}?token=${encodeURIComponent(token)}`;
-  const socket = new WebSocket(wsUrl);
-
-  socket.onopen = () => {
-    socket.send(
-      JSON.stringify({
-        text: clean,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      }),
-    );
-  };
-
-  socket.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    if (data.type === "token") {
-      textDiv.textContent += data.text;
-      accumulatedResponse += data.text;
-      if (messages) messages.scrollTop = messages.scrollHeight;
-    } else if (data.type === "end") {
-      socket.close();
-      speakText(accumulatedResponse);
-      loadUserSessions();
-    } else if (data.type === "error") {
-      textDiv.textContent += ` [Error: ${data.message}]`;
-    }
-  };
-
-  socket.onerror = () => {
-    textDiv.textContent = "Connection error with AI service.";
-  };
 }
-
 function sendMessage(text) {
   sendMessageToBackend(text);
 }
@@ -662,6 +696,10 @@ $("#close-sidebar")?.addEventListener("click", () =>
 );
 $("#new-chat")?.addEventListener("click", () => {
   activeSessionId = null;
+  localStorage.removeItem(getActiveSessionKey());
+  if (activeSocket) activeSocket.close();
+  activeSocket = null;
+  socketSessionId = null;
   if (messages) {
     messages.innerHTML = `<div class="welcome-message"><span class="mini-logo">N</span><h1>What can I help with?</h1><p>Start a new conversation by typing below or switching to voice.</p></div>`;
   }
