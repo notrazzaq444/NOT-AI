@@ -610,12 +610,14 @@ async def transcribe_audio(
 @app.get("/api/tts")
 async def text_to_speech(
     text: str = Query(min_length=1, max_length=5000),
-    voice: str = "nova",
+    voice: str | None = None,
     decoded_token: dict[str, Any] = Depends(get_current_user_token),
 ):
     del decoded_token
     try:
-        audio_bytes = await generate_speech(text, voice=voice)
+        preset_names = {"nova", "echo", "alloy", "shimmer", "fable", "onyx"}
+        voice_id = None if not voice or voice.lower() in preset_names else voice
+        audio_bytes = await generate_speech(text, voice=voice_id)
         return Response(content=audio_bytes, media_type="audio/mpeg")
     except Exception:
         logger.exception("Text-to-speech failed")
@@ -664,7 +666,8 @@ async def ws_chat(
 
     # Ensure the requested session belongs to this authenticated user.
     chat_ref = _get_user_ref(uid).collection("chats").document(session_id)
-    if not chat_ref.get().exists:
+    chat_snapshot = await asyncio.to_thread(chat_ref.get)
+    if not chat_snapshot.exists:
         await ws.close(code=4404, reason="Chat session not found")
         return
 
