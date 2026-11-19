@@ -298,7 +298,7 @@ async function deleteSession(sessionId) {
       showToast("Chat deleted successfully");
       await loadUserSessions();
       if (activeSessionId === sessionId) {
-        activeSessionId = "session-" + Math.random().toString(36).substring(2, 9);
+        activeSessionId = null;
         if (messages) {
           messages.innerHTML = `<div class="welcome-message"><span class="mini-logo">N</span><h1>What can I help with?</h1><p>Start a new conversation by typing below or switching to voice.</p></div>`;
         }
@@ -505,21 +505,13 @@ function createMessage(role, content, isHTML = false) {
 async function speakText(text) {
   if (state.muted || !text || !text.trim()) return;
   try {
-    const response = await fetch(
-      `${API_ORIGIN}/api/tts?text=${encodeURIComponent(text)}`,
-    );
-    if (response.ok) {
-      const audioBlob = await response.blob();
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
-      audio.play();
-    }
+    if (window.NOTAudio) await window.NOTAudio.speak(text);
   } catch (e) {
     console.error("TTS Audio playback failed:", e);
   }
 }
 
-let activeSessionId = "session-" + Math.random().toString(36).substring(2, 9);
+let activeSessionId = null;
 
 async function sendMessageToBackend(text) {
   const clean = text.trim();
@@ -664,7 +656,7 @@ $("#close-sidebar")?.addEventListener("click", () =>
   $("#sidebar")?.classList.remove("is-open"),
 );
 $("#new-chat")?.addEventListener("click", () => {
-  activeSessionId = "session-" + Math.random().toString(36).substring(2, 9);
+  activeSessionId = null;
   if (messages) {
     messages.innerHTML = `<div class="welcome-message"><span class="mini-logo">N</span><h1>What can I help with?</h1><p>Start a new conversation by typing below or switching to voice.</p></div>`;
   }
