@@ -503,7 +503,7 @@ function createMessage(role, content, isHTML = false) {
 }
 
 async function speakText(text) {
-  if (state.muted || !text || !text.trim()) return;
+  if (!text || !text.trim()) return;
   try {
     if (window.NOTAudio) await window.NOTAudio.speak(text);
   } catch (e) {
@@ -675,7 +675,13 @@ $("#voice-mute")?.addEventListener("click", () => {
   state.muted = !state.muted;
   const muteText = $("#voice-mute span");
   if (muteText) muteText.textContent = state.muted ? "Unmute" : "Mute";
-  if (state.muted && window.NOTAudio) window.NOTAudio.stopListening();
+  if (state.muted && window.NOTAudio) {
+    window.NOTAudio.stopListening();
+  } else if (!state.muted && window.NOTAudio) {
+    window.NOTAudio.startListening((text) => {
+      if (text) sendMessageToBackend(text);
+    });
+  }
   showToast(state.muted ? "Microphone muted" : "Microphone active");
 });
 
