@@ -542,7 +542,7 @@ def delete_chat_session(
         raise HTTPException(status_code=503, detail="Firestore is not available")
 
     chat_ref = _get_user_ref(uid).collection("chats").document(session_id)
-    chat_snapshot = await asyncio.to_thread(chat_ref.get)
+    chat_snapshot = chat_ref.get()
     if not chat_snapshot.exists:
         raise HTTPException(status_code=404, detail="Session not found")
 
