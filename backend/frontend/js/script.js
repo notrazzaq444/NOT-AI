@@ -138,7 +138,8 @@ function handleAccountClick() {
 async function handleFirebaseUserSession(user) {
   if (user) {
     try {
-      const token = await user.getIdToken();
+      const token = await user.getIdToken(true);
+      localStorage.setItem("not-user-uid", user.uid);
       localStorage.setItem("firebase_id_token", token);
       localStorage.setItem("not-token", token);
       state.signedIn = true;
@@ -169,6 +170,8 @@ async function handleFirebaseUserSession(user) {
     state.signedIn = false;
     localStorage.removeItem("firebase_id_token");
     localStorage.removeItem("not-token");
+    localStorage.removeItem("not-user-uid");
+    localStorage.removeItem("not_active_session_" + (localStorage.getItem("not-user-uid") || "default"));
     updateAuthUI();
   }
 }
@@ -523,7 +526,7 @@ let socketSessionId = null;
 let pendingTurn = null;
 
 function getActiveSessionKey() {
-  const uid = (typeof firebase !== "undefined" && firebase.auth?.().currentUser?.uid) || "default";
+  const uid = localStorage.getItem("not-user-uid") || (typeof firebase !== "undefined" && firebase.auth?.().currentUser?.uid) || "default";
   return `not_active_session_${uid}`;
 }
 
@@ -595,7 +598,16 @@ async function sendMessageToBackend(text) {
   createMessage("user", clean);
   const assistantArticle = createMessage("assistant", "");
   const textDiv = assistantArticle.querySelector(".message-text");
-  const token = localStorage.getItem("firebase_id_token") || "dummy-dev-token";
+  const currentUser = (typeof firebase !== "undefined" && firebase.auth?.().currentUser) || null;
+  const token = currentUser
+    ? await currentUser.getIdToken(true)
+    : (localStorage.getItem("firebase_id_token") || "");
+
+  if (!token) {
+    textDiv.textContent = "Please sign in again. Your authentication token is missing.";
+    return;
+  }
+  localStorage.setItem("firebase_id_token", token);
 
   try {
     const sessionId = await ensureActiveSession(token);
