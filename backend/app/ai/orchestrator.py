@@ -43,7 +43,7 @@ class Orchestrator:
             accumulated_text = ""
             pending_tool_calls = []
 
-            async for delta in self.provider.stream_chat(messages, tools=TOOL_SCHEMAS):
+            async for delta in self.provider.stream_chat(messages, tools=TOOL_SCHEMAS, max_tokens=512):
                 if delta.content:
                     accumulated_text += delta.content
                     yield {"type": "token", "text": delta.content}
