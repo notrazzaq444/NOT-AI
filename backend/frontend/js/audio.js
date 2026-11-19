@@ -149,6 +149,7 @@ window.NOTAudio = (function () {
   }
 
   function stopListening() {
+    autoContinue = false;
     stopRecording(false);
   }
 
