@@ -1,0 +1,36 @@
+# --- Web ---
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+websockets==14.1
+python-multipart==0.0.20
+
+# --- Config & validation ---
+pydantic==2.10.4
+pydantic-settings==2.7.0
+python-dotenv==1.0.1
+
+# --- AI (Phase 2) ---
+groq==0.13.1
+
+# --- Search (Phase 3) ---
+tavily-python==0.5.0
+httpx==0.28.1
+trafilatura==2.0.0
+beautifulsoup4==4.12.3
+
+# --- Voice (Phase 5) ---
+faster-whisper==1.1.1
+edge-tts==7.0.0
+pydub==0.25.1
+
+# --- Memory (Phase 6) ---
+hybriddb==0.4.1
+
+# --- Automation (Phase 7) ---
+pyautogui==0.9.54
+pywinauto==0.6.9 ; sys_platform == "win32"
+pyperclip==1.9.0
+
+# --- Utilities ---
+aiofiles==24.1.0
+python-dateutil==2.9.0.post0

@@ -1,0 +1,585 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+        <meta name="theme-color" content="#050708">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="/css/style.css">
+        <title>NOT — Personal Intelligence</title>
+    </head>
+    <body>
+        <svg class="svg-sprite" aria-hidden="true">
+            <symbol id="i-menu" viewBox="0 0 24 24">
+                <path d="M4 7h16M4 12h16M4 17h10"/>
+            </symbol>
+            <symbol id="i-plus" viewBox="0 0 24 24">
+                <path d="M12 5v14M5 12h14"/>
+            </symbol>
+            <symbol id="i-chat" viewBox="0 0 24 24">
+                <path d="M20 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h9a4 4 0 0 1 4 4z"/>
+            </symbol>
+            <symbol id="i-mic" viewBox="0 0 24 24">
+                <rect
+                    x="8"
+                    y="3"
+                    width="8"
+                    height="13"
+                    rx="4"
+                />
+                <path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6"/>
+            </symbol>
+            <symbol id="i-call" viewBox="0 0 24 24">
+                <path d="M7 3h3l2 5-2 2a16 16 0 0 0 4 4l2-2 5 2v3a4 4 0 0 1-4 4C9.3 20.2 3.8 14.7 3 7a4 4 0 0 1 4-4z"/>
+            </symbol>
+            <symbol id="i-paperclip" viewBox="0 0 24 24">
+                <path d="m20.5 11.5-8.7 8.7a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 1 1 5.7 5.7L9 17.4a2 2 0 0 1-2.8-2.8l8.6-8.6"/>
+            </symbol>
+            <symbol id="i-send" viewBox="0 0 24 24">
+                <path d="m3 3 18 9-18 9 3-9zM6 12h15"/>
+            </symbol>
+            <symbol id="i-copy" viewBox="0 0 24 24">
+                <rect
+                    x="8"
+                    y="8"
+                    width="12"
+                    height="12"
+                    rx="2"
+                />
+                <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>
+            </symbol>
+            <symbol id="i-check" viewBox="0 0 24 24">
+                <path d="m5 12 4 4L19 6"/>
+            </symbol>
+            <symbol id="i-x" viewBox="0 0 24 24">
+                <path d="m6 6 12 12M18 6 6 18"/>
+            </symbol>
+            <symbol id="i-user" viewBox="0 0 24 24">
+                <circle cx="12" cy="8" r="4"/>
+                <path d="M4 21a8 8 0 0 1 16 0"/>
+            </symbol>
+            <symbol id="i-settings" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1a1.7 1.7 0 0 0 1.9.3A1.7 1.7 0 0 0 10 3V2.8h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1z"/>
+            </symbol>
+            <symbol id="i-chevron" viewBox="0 0 24 24">
+                <path d="m9 18 6-6-6-6"/>
+            </symbol>
+            <symbol id="i-spark" viewBox="0 0 24 24">
+                <path d="m12 2 1.6 5.2L19 9l-5.4 1.8L12 16l-1.6-5.2L5 9l5.4-1.8zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/>
+            </symbol>
+            <symbol id="i-volume" viewBox="0 0 24 24">
+                <path d="M11 5 6 9H3v6h3l5 4zM15 9a4 4 0 0 1 0 6M18 6a8 8 0 0 1 0 12"/>
+            </symbol>
+            <symbol id="i-more" viewBox="0 0 24 24">
+                <circle cx="5" cy="12" r="1"/>
+                <circle cx="12" cy="12" r="1"/>
+                <circle cx="19" cy="12" r="1"/>
+            </symbol>
+            <symbol id="i-log-out" viewBox="0 0 24 24">
+                <path d="M10 17l5-5-5-5M15 12H3M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+            </symbol>
+        </svg>
+        <div class="app">
+            <aside class="sidebar" id="sidebar">
+                <div class="side-top">
+                    <button class="logo" data-view="voice" aria-label="NOT home">
+                        <span>N</span>
+                        <b>NOT</b>
+                    </button>
+                    <button class="icon-btn mobile-close" id="close-sidebar" aria-label="Close menu">
+                        <svg>
+                            <use href="#i-x"/>
+                        </svg>
+                    </button>
+                </div>
+                <button class="new-chat" id="new-chat">
+                    <svg>
+                        <use href="#i-plus"/>
+                    </svg>
+                    <span>New conversation</span>
+                </button>
+                <nav class="side-nav" aria-label="Main navigation">
+                    <button class="nav-link is-active" data-view="voice">
+                        <svg>
+                            <use href="#i-mic"/>
+                        </svg>
+                        <span>Voice</span>
+                        <small>Default</small>
+                    </button>
+                    <button class="nav-link" data-view="chat">
+                        <svg>
+                            <use href="#i-chat"/>
+                        </svg>
+                        <span>Chat</span>
+                    </button>
+                    <button class="nav-link" id="start-call-side">
+                        <svg>
+                            <use href="#i-call"/>
+                        </svg>
+                        <span>Live call</span>
+                    </button>
+                </nav>
+                <div class="history">
+                    <p>RECENT</p>
+                    <button data-view="chat"></button>
+                </div>
+                <div class="side-footer">
+                    <button class="signin-side" data-open-auth>
+                        <span class="account-avatar">
+                            <svg>
+                                <use href="#i-user"/>
+                            </svg
+            >
+                        </span>
+                        <span>
+                            <b class="auth-label">Sign in</b>
+                            <small>Sync your intelligence</small>
+                        </span>
+                        <svg class="chev">
+                            <use href="#i-chevron"/>
+                        </svg>
+                    </button>
+                </div>
+            </aside>
+            <main class="workspace">
+                <header class="topbar">
+                    <button class="icon-btn menu-btn" id="open-sidebar" aria-label="Open menu">
+                        <svg>
+                            <use href="#i-menu"/>
+                        </svg>
+                    </button>
+                    <div class="model-name">
+                        <span class="status-dot"></span>
+                        <span>NOT</span>
+                        <small>Personal intelligence</small>
+                    </div>
+                    <div class="top-actions">
+                        <button class="call-button" id="start-call">
+                            <svg>
+                                <use href="#i-call"/>
+                            </svg>
+                            <span>Live call</span>
+                        </button>
+                        <button class="signin-top" data-open-auth>
+                            <span class="auth-label">Sign in</span>
+                        </button>
+                    </div>
+                </header>
+                <section class="view voice-view is-active" data-view-panel="voice">
+                    <div class="voice-stage">
+                        <div class="system-line">
+                            <span></span>
+                            VOICE CHANNEL READY
+                            <span></span>
+                        </div>
+                        <button class="orb" id="voice-orb" aria-label="Start voice session">
+                            <span class="orb-a"></span>
+                            <span class="orb-b"></span>
+                            <span class="orb-c"></span>
+                            <span class="orb-core">
+                                <i></i>
+                            </span>
+                        </button>
+                        <div class="voice-copy">
+                            <p id="voice-kicker">GOOD EVENING</p>
+                            <h1 id="voice-title">How can I help?</h1>
+                            <span id="voice-subtitle">Tap the orb and start speaking</span>
+                        </div>
+                        <div class="voice-bars" id="voice-bars" aria-hidden="true">
+                            <i></i>
+                            <i></i>
+                            <i></i>
+                            <i></i>
+                            <i></i>
+                            <i></i>
+                            <i></i>
+                            <i></i>
+                            <i></i>
+                        </div>
+                        <div class="voice-controls">
+                            <button class="round-control" id="voice-mute">
+                                <svg>
+                                    <use href="#i-mic"/>
+                                </svg>
+                                <span>Mute</span>
+                            </button>
+                            <button class="main-mic" id="voice-toggle">
+                                <svg>
+                                    <use href="#i-mic"/>
+                                </svg>
+                            </button>
+                            <button class="round-control" data-view="chat">
+                                <svg>
+                                    <use href="#i-chat"/>
+                                </svg>
+                                <span>Type</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="suggestions">
+                        <button data-prompt="Help me plan a focused day">
+                            <span>01</span>
+                            Plan my day
+                            <svg>
+                                <use href="#i-chevron"/>
+                            </svg>
+                        </button>
+                        <button data-prompt="Give me three fresh product ideas">
+                            <span>02</span>
+                            Explore an idea
+                            <svg>
+                                <use href="#i-chevron"/>
+                            </svg>
+                        </button>
+                        <button data-prompt="Write a professional application letter">
+                            <span>03</span>
+                            Create something
+                            <svg>
+                                <use href="#i-chevron"/>
+                            </svg>
+                        </button>
+                    </div>
+                </section>
+                <section class="view chat-view" data-view-panel="chat">
+                    <div class="chat-header">
+                        <div>
+                            <p>Conversation</p>
+                            <h2>Chat with NOT</h2>
+                        </div>
+                        <button class="icon-btn" id="chat-menu" aria-label="Conversation options">
+                            <svg>
+                                <use href="#i-more"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="messages" id="messages">
+                        <div class="welcome-message">
+                            <span class="mini-logo">N</span>
+                            <h1>What can I help with?</h1>
+                            <p>
+                                Ask anything, upload a file, or switch to voice when you want a more natural
+                conversation.
+                            </p>
+                            <div class="prompt-grid">
+                                <button data-prompt="Write a professional cover letter for a product designer">
+                                    Write a cover letter
+                                    <span>Craft a polished document</span>
+                                </button>
+                                <button data-prompt="Create a simple JavaScript countdown timer">
+                                    Help me code
+                                    <span>Build and explain</span>
+                                </button>
+                                <button data-prompt="Summarize the attached document">
+                                    Summarize a file
+                                    <span>Pull out key points</span>
+                                </button>
+                                <button data-prompt="Brainstorm a launch plan for my new app">
+                                    Brainstorm ideas
+                                    <span>Think it through</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="composer-wrap">
+                        <div class="attachment-preview" id="attachment-preview" hidden></div>
+                        <form class="composer" id="chat-form">
+                            <input
+                                type="file"
+                                id="file-input"
+                                hidden
+                                multiple
+                            >
+                            <button
+                                type="button"
+                                class="composer-icon"
+                                id="attach-file"
+                                aria-label="Add media or file"
+                            >
+                                <svg>
+                                    <use href="#i-plus"/>
+                                </svg>
+                            </button>
+                            <textarea id="chat-input" rows="1" placeholder="Message NOT"></textarea>
+                            <button
+                                type="button"
+                                class="composer-icon mic-composer"
+                                data-view="voice"
+                                aria-label="Open voice mode"
+                            >
+                                <svg>
+                                    <use href="#i-mic"/>
+                                </svg>
+                            </button>
+                            <button type="submit" class="send-button" aria-label="Send message">
+                                <svg>
+                                    <use href="#i-send"/>
+                                </svg>
+                            </button>
+                        </form>
+                        <p class="disclaimer">NOT can make mistakes. Check important information.</p>
+                    </div>
+                </section>
+            </main>
+            <nav class="mobile-nav">
+                <button data-view="voice" class="is-active">
+                    <svg>
+                        <use href="#i-mic"/>
+                    </svg>
+                    <span>Voice</span>
+                </button>
+                <button data-view="chat">
+                    <svg>
+                        <use href="#i-chat"/>
+                    </svg>
+                    <span>Chat</span>
+                </button>
+                <button id="mobile-call">
+                    <span class="nav-call">
+                        <svg>
+                            <use href="#i-call"/>
+                        </svg>
+                    </span
+          >
+                    <span>Call</span>
+                </button>
+                <button id="mobile-account" data-open-auth>
+                    <svg>
+                        <use href="#i-user"/>
+                    </svg>
+                    <span class="auth-label">Sign in</span>
+                </button>
+            </nav>
+        </div>
+        <div class="modal" id="auth-modal" aria-hidden="true">
+            <div class="modal-backdrop" data-close-modal></div>
+            <section
+                class="auth-card"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="auth-title"
+            >
+                <button class="icon-btn modal-close" data-close-modal aria-label="Close">
+                    <svg>
+                        <use href="#i-x"/>
+                    </svg>
+                </button>
+                <div class="auth-brand">
+                    <span>N</span>
+                </div>
+                <p class="overline">YOUR PERSONAL INTELLIGENCE</p>
+                <h2 id="auth-title">Welcome back</h2>
+                <p class="auth-intro">
+                    Sign in to sync conversations and personalize NOT across your devices.
+                </p>
+                <button class="google-button" id="google-signin">
+                    <b>G</b>
+                    Continue with Google
+                </button>
+                <div class="divider">
+                    <span>or continue with email</span>
+                </div>
+                <form id="login-form">
+                    <label>
+                        Email address
+                        <input
+                            id="login-email"
+                            type="email"
+                            placeholder="you@example.com"
+                            required
+                        >
+                    </label>
+                    <label>
+                        Password
+                        <span>
+                            <input
+                                id="login-password"
+                                type="password"
+                                placeholder="Enter your password"
+                                required
+                            >
+                            <button type="button" class="text-button">Show</button>
+                        </span
+            >
+                    </label
+          >
+                    <div class="form-row">
+                        <label class="remember">
+                            <input type="checkbox">
+                            Remember me
+                        </label
+            >
+                        <button type="button" class="link-button">Forgot password?</button>
+                    </div>
+                    <button class="primary-button" type="submit">Sign in</button>
+                </form>
+                <p class="auth-switch">
+                    New to NOT?
+                    <button id="create-account">Create an account</button>
+                </p>
+                <small class="terms">By continuing, you agree to our Terms and Privacy Policy.</small>
+            </section>
+        </div>
+        <div class="modal" id="account-modal" aria-hidden="true">
+            <div class="modal-backdrop" data-close-modal></div>
+            <section
+                class="account-card"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="account-title"
+            >
+                <header>
+                    <div>
+                        <p>ACCOUNT</p>
+                        <h2 id="account-title">Your intelligence</h2>
+                    </div>
+                    <button class="icon-btn" data-close-modal>
+                        <svg>
+                            <use href="#i-x"/>
+                        </svg>
+                    </button>
+                </header>
+                <div class="profile-row">
+                    <span class="profile-avatar">A</span>
+                    <div>
+                        <b>Alex Morgan</b>
+                        <span id="profile-email">alex@example.com</span>
+                    </div>
+                    <button>Edit</button>
+                </div>
+                <div class="account-section">
+                    <p>PERSONALIZATION</p>
+                    <button class="setting-row">
+                        <span class="setting-icon">
+                            <svg>
+                                <use href="#i-spark"/>
+                            </svg>
+                        </span
+            >
+                        <span>
+                            <b>AI personality</b>
+                            <small>Calm, direct and thoughtful</small>
+                        </span
+            >
+                        <svg>
+                            <use href="#i-chevron"/>
+                        </svg>
+                    </button>
+                    <button class="setting-row">
+                        <span class="setting-icon">
+                            <svg>
+                                <use href="#i-volume"/>
+                            </svg>
+                        </span
+            >
+                        <span>
+                            <b>Voice</b>
+                            <small>Nova · Natural</small>
+                        </span
+            >
+                        <svg>
+                            <use href="#i-chevron"/>
+                        </svg>
+                    </button>
+                    <button class="setting-row">
+                        <span class="setting-icon">
+                            <svg>
+                                <use href="#i-settings"/>
+                            </svg>
+                        </span
+            >
+                        <span>
+                            <b>Preferences</b>
+                            <small>Language, memory and privacy</small>
+                        </span
+            >
+                        <svg>
+                            <use href="#i-chevron"/>
+                        </svg>
+                    </button>
+                </div>
+                <button class="logout-button" id="logout">
+                    <svg>
+                        <use href="#i-log-out"/>
+                    </svg>
+                    Sign out
+                </button>
+            </section>
+        </div>
+        <div class="call-overlay" id="call-overlay" aria-hidden="true">
+            <div class="call-top">
+                <button class="icon-btn" id="close-call">
+                    <svg>
+                        <use href="#i-chevron"/>
+                    </svg>
+                </button>
+                <p>LIVE WITH NOT</p>
+                <button class="icon-btn">
+                    <svg>
+                        <use href="#i-more"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="call-content">
+                <p class="call-time" id="call-time">00:00</p>
+                <div class="call-orb">
+                    <span></span>
+                    <i></i>
+                </div>
+                <h2 id="call-status">Listening…</h2>
+                <p>Speak naturally. I’ll respond when you pause.</p>
+                <div class="call-wave">
+                    <i></i>
+                    <i></i>
+                    <i></i>
+                    <i></i>
+                    <i></i>
+                    <i></i>
+                    <i></i>
+                    <i></i>
+                    <i></i>
+                    <i></i>
+                    <i></i>
+                </div>
+            </div>
+            <div class="call-actions">
+                <button id="call-mute">
+                    <span>
+                        <svg>
+                            <use href="#i-mic"/>
+                        </svg>
+                    </span
+          >
+                    Mute
+                </button>
+                <button class="end-call" id="end-call">
+                    <span>
+                        <svg>
+                            <use href="#i-call"/>
+                        </svg>
+                    </span
+          >
+                    End
+                </button>
+                <button>
+                    <span>
+                        <svg>
+                            <use href="#i-volume"/>
+                        </svg>
+                    </span
+          >
+                    Speaker
+                </button>
+            </div>
+        </div>
+        <div class="toast" id="toast" role="status"></div>
+        <script type="module" src="/js/socket.js"></script>
+        <script type="module" src="/js/audio.js"></script>
+        <script type="module" src="/js/bridge.js"></script>
+        <script type="module" src="/js/script.js"></script>
+    </body>
+</html>
