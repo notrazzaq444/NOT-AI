@@ -30,6 +30,7 @@ pydub==0.25.1
 fish-audio-sdk
 
 # Memory
+chromadb
 hybriddb==0.4.1
 
 # Automation (desktop-only features)

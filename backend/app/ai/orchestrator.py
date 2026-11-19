@@ -1,6 +1,8 @@
 """Orchestrator - tool-call loop with streaming & memory."""
 from __future__ import annotations
+import asyncio
 import json
+import uuid
 from typing import AsyncIterator
 from app.ai.provider_base import BaseProvider, Message
 from app.ai.tool_registry import TOOL_SCHEMAS, execute_tool
@@ -21,7 +23,9 @@ class Orchestrator:
 
     async def run(self, history: list[Message], user_timezone: str = "UTC", user_language: str = "en") -> AsyncIterator[dict]:
         latest_user_msg = history[-1].content if history and history[-1].role == "user" else ""
-        memories = self.memory.search_memory(latest_user_msg, n_results=3)
+        memories = await asyncio.to_thread(
+            self.memory.search_memory, latest_user_msg, n_results=3
+        )
         
         memory_context = ""
         if memories:
@@ -39,7 +43,7 @@ class Orchestrator:
             accumulated_text = ""
             pending_tool_calls = []
 
-            async for delta in self.provider.stream_chat(messages, tools=TOOL_SCHEMAS):
+            async for delta in self.provider.stream_chat(messages, tools=TOOL_SCHEMAS, max_tokens=512):
                 if delta.content:
                     accumulated_text += delta.content
                     yield {"type": "token", "text": delta.content}
@@ -48,10 +52,11 @@ class Orchestrator:
 
             if not pending_tool_calls:
                 if accumulated_text.strip():
-                    self.memory.add_memory(
+                    await asyncio.to_thread(
+                        self.memory.add_memory,
                         text=f"User: {latest_user_msg}\nAI: {accumulated_text}",
                         metadata={"type": "conversation"},
-                        mem_id=f"msg_{hash(latest_user_msg + accumulated_text)}"
+                        mem_id=f"msg_{uuid.uuid4().hex}",
                     )
                 yield {"type": "done", "content": accumulated_text}
                 return
@@ -69,7 +74,7 @@ class Orchestrator:
                     tc.arguments["timezone"] = user_timezone
                 
                 yield {"type": "tool_call", "name": tc.name, "args": tc.arguments}
-                result = execute_tool(tc.name, tc.arguments)
+                result = await asyncio.to_thread(execute_tool, tc.name, tc.arguments)
                 yield {"type": "tool_result", "name": tc.name, "result": result}
                 messages.append(Message(role="tool", content=result, tool_name=tc.name, tool_call_id=tc.id, name=tc.name))
 
