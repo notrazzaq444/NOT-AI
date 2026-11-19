@@ -23,7 +23,9 @@ class Orchestrator:
 
     async def run(self, history: list[Message], user_timezone: str = "UTC", user_language: str = "en") -> AsyncIterator[dict]:
         latest_user_msg = history[-1].content if history and history[-1].role == "user" else ""
-        memories = await asyncio.to_thread(\n            self.memory.search_memory, latest_user_msg, n_results=3\n        )
+        memories = await asyncio.to_thread(
+            self.memory.search_memory, latest_user_msg, n_results=3
+        )
         
         memory_context = ""
         if memories:
@@ -50,10 +52,11 @@ class Orchestrator:
 
             if not pending_tool_calls:
                 if accumulated_text.strip():
-                    self.memory.add_memory(
+                    await asyncio.to_thread(
+                        self.memory.add_memory,
                         text=f"User: {latest_user_msg}\nAI: {accumulated_text}",
                         metadata={"type": "conversation"},
-                        mem_id=f"msg_{hash(latest_user_msg + accumulated_text)}"
+                        mem_id=f"msg_{uuid.uuid4().hex}",
                     )
                 yield {"type": "done", "content": accumulated_text}
                 return
