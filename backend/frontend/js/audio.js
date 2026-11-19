@@ -17,7 +17,7 @@ window.NOTAudio = (function () {
   async function authToken() {
     const user = (typeof firebase !== "undefined" && firebase.auth?.().currentUser) || null;
     if (user) {
-      const freshToken = await user.getIdToken(true);
+      const freshToken = await user.getIdToken();
       localStorage.setItem("firebase_id_token", freshToken);
       return freshToken;
     }
@@ -139,7 +139,7 @@ window.NOTAudio = (function () {
 
     if (average > 9) {
       lastVoiceTime = Date.now();
-    } else if (Date.now() - lastVoiceTime > 1100) {
+    } else if (Date.now() - lastVoiceTime > 550) {
       stopRecording(true);
       return;
     }
