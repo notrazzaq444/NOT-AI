@@ -35,7 +35,7 @@ class Settings(BaseSettings):
 
     # AI
     groq_api_key: str = ""
-    groq_model: str = "openai/gpt-oss-120b"
+    groq_model: str = "openai/gpt-oss-20b"
     groq_tool_model: str = "openai/gpt-oss-120b"
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"

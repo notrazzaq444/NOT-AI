@@ -138,7 +138,8 @@ function handleAccountClick() {
 async function handleFirebaseUserSession(user) {
   if (user) {
     try {
-      const token = await user.getIdToken();
+      const token = await user.getIdToken(true);
+      localStorage.setItem("not-user-uid", user.uid);
       localStorage.setItem("firebase_id_token", token);
       localStorage.setItem("not-token", token);
       state.signedIn = true;
@@ -167,8 +168,11 @@ async function handleFirebaseUserSession(user) {
     }
   } else {
     state.signedIn = false;
+    const previousUid = localStorage.getItem("not-user-uid") || "default";
     localStorage.removeItem("firebase_id_token");
     localStorage.removeItem("not-token");
+    localStorage.removeItem("not-user-uid");
+    localStorage.removeItem("not_active_session_" + previousUid);
     updateAuthUI();
   }
 }
@@ -269,6 +273,10 @@ async function loadSessionMessages(sessionId) {
     if (response.ok) {
       const messagesList = await response.json();
       activeSessionId = sessionId;
+      localStorage.setItem(getActiveSessionKey(), sessionId);
+      if (activeSocket) activeSocket.close();
+      activeSocket = null;
+      socketSessionId = null;
       if (messages) {
         messages.innerHTML = "";
         if (messagesList.length === 0) {
@@ -298,7 +306,11 @@ async function deleteSession(sessionId) {
       showToast("Chat deleted successfully");
       await loadUserSessions();
       if (activeSessionId === sessionId) {
-        activeSessionId = "session-" + Math.random().toString(36).substring(2, 9);
+        activeSessionId = null;
+        localStorage.removeItem(getActiveSessionKey());
+        if (activeSocket) activeSocket.close();
+        activeSocket = null;
+        socketSessionId = null;
         if (messages) {
           messages.innerHTML = `<div class="welcome-message"><span class="mini-logo">N</span><h1>What can I help with?</h1><p>Start a new conversation by typing below or switching to voice.</p></div>`;
         }
@@ -441,8 +453,6 @@ function toggleVoice() {
     if (window.NOTAudio) {
       window.NOTAudio.startListening((text) => {
         if (text) {
-          $(".welcome-message")?.remove();
-          createMessage("user", text);
           sendMessageToBackend(text);
         }
       });
@@ -503,88 +513,117 @@ function createMessage(role, content, isHTML = false) {
 }
 
 async function speakText(text) {
-  if (state.muted || !text || !text.trim()) return;
+  if (!text || !text.trim()) return;
   try {
-    const response = await fetch(
-      `${API_ORIGIN}/api/tts?text=${encodeURIComponent(text)}`,
-    );
-    if (response.ok) {
-      const audioBlob = await response.blob();
-      const audioUrl = URL.createObjectURL(audioBlob);
-      const audio = new Audio(audioUrl);
-      audio.play();
-    }
+    if (window.NOTAudio) await window.NOTAudio.speak(text);
   } catch (e) {
     console.error("TTS Audio playback failed:", e);
   }
 }
 
-let activeSessionId = "session-" + Math.random().toString(36).substring(2, 9);
+let activeSessionId = null;
+let activeSocket = null;
+let socketSessionId = null;
+let pendingTurn = null;
+
+function getActiveSessionKey() {
+  const uid = localStorage.getItem("not-user-uid") || (typeof firebase !== "undefined" && firebase.auth?.().currentUser?.uid) || "default";
+  return `not_active_session_${uid}`;
+}
+
+async function ensureActiveSession(token) {
+  if (activeSessionId) return activeSessionId;
+  const savedId = localStorage.getItem(getActiveSessionKey());
+  if (savedId) {
+    activeSessionId = savedId;
+    return activeSessionId;
+  }
+  const response = await fetch(`${API_ORIGIN}/api/session`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!response.ok) throw new Error("Could not create chat session");
+  const data = await response.json();
+  if (!data.session_id) throw new Error("Server returned no session ID");
+  activeSessionId = data.session_id;
+  localStorage.setItem(getActiveSessionKey(), activeSessionId);
+  return activeSessionId;
+}
+
+function connectChatSocket(sessionId, token) {
+  if (activeSocket && socketSessionId === sessionId && activeSocket.readyState === WebSocket.OPEN) {
+    return Promise.resolve(activeSocket);
+  }
+  if (activeSocket) activeSocket.close();
+  const url = `${WS_PROTOCOL}//${window.location.host}/ws/${sessionId}?token=${encodeURIComponent(token)}`;
+  const socket = new WebSocket(url);
+  activeSocket = socket;
+  socketSessionId = sessionId;
+
+  return new Promise((resolve, reject) => {
+    socket.onopen = () => resolve(socket);
+    socket.onerror = () => reject(new Error("WebSocket connection failed"));
+    socket.onclose = () => {
+      if (activeSocket === socket) {
+        activeSocket = null;
+        socketSessionId = null;
+      }
+    };
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      const turn = pendingTurn;
+      if (!turn) return;
+      if (data.type === "token") {
+        turn.textDiv.textContent += data.text;
+        turn.response += data.text;
+        if (messages) messages.scrollTop = messages.scrollHeight;
+      } else if (data.type === "end") {
+        pendingTurn = null;
+        speakText(turn.response);
+        loadUserSessions();
+      } else if (data.type === "error") {
+        turn.textDiv.textContent += ` [Error: ${data.message}]`;
+      }
+    };
+  });
+}
 
 async function sendMessageToBackend(text) {
   const clean = text.trim();
   if (!clean) return;
-
+  if (pendingTurn) {
+    showToast("Wait for NOT to finish the current reply.");
+    return;
+  }
   $(".welcome-message")?.remove();
   createMessage("user", clean);
-
   const assistantArticle = createMessage("assistant", "");
   const textDiv = assistantArticle.querySelector(".message-text");
-  let accumulatedResponse = "";
+  const currentUser = (typeof firebase !== "undefined" && firebase.auth?.().currentUser) || null;
+  const token = currentUser
+    ? await currentUser.getIdToken(true)
+    : (localStorage.getItem("firebase_id_token") || "");
 
-  const token = localStorage.getItem("firebase_id_token") || "dummy-dev-token";
-  
-  // Register session on backend first so it never throws 404 or foreign key errors
-  try {
-    const sessRes = await fetch(`${API_ORIGIN}/api/session`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`
-      }
-    });
-    if (sessRes.ok) {
-      const sessData = await sessRes.json();
-      if (sessData.session_id) {
-        activeSessionId = sessData.session_id;
-      }
-    }
-  } catch (e) {
-    console.error("Session creation prefix error:", e);
+  if (!token) {
+    textDiv.textContent = "Please sign in again. Your authentication token is missing.";
+    return;
   }
+  localStorage.setItem("firebase_id_token", token);
 
-  const wsUrl = `${WS_PROTOCOL}//${window.location.host}/ws/${activeSessionId}?token=${encodeURIComponent(token)}`;
-  const socket = new WebSocket(wsUrl);
-
-  socket.onopen = () => {
-    socket.send(
-      JSON.stringify({
-        text: clean,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      }),
-    );
-  };
-
-  socket.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    if (data.type === "token") {
-      textDiv.textContent += data.text;
-      accumulatedResponse += data.text;
-      if (messages) messages.scrollTop = messages.scrollHeight;
-    } else if (data.type === "end") {
-      socket.close();
-      speakText(accumulatedResponse);
-      loadUserSessions();
-    } else if (data.type === "error") {
-      textDiv.textContent += ` [Error: ${data.message}]`;
-    }
-  };
-
-  socket.onerror = () => {
-    textDiv.textContent = "Connection error with AI service.";
-  };
+  try {
+    const sessionId = await ensureActiveSession(token);
+    const socket = await connectChatSocket(sessionId, token);
+    pendingTurn = { textDiv, response: "" };
+    socket.send(JSON.stringify({
+      text: clean,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    }));
+  } catch (error) {
+    pendingTurn = null;
+    textDiv.textContent = "Connection error: " + error.message;
+    console.error("Chat send failed:", error);
+  }
 }
-
 function sendMessage(text) {
   sendMessageToBackend(text);
 }
@@ -601,6 +640,11 @@ function clearAttachment() {
 }
 
 function startCall() {
+  if (!state.signedIn || !localStorage.getItem("firebase_id_token")) {
+    showToast("Please sign in before starting a live call.");
+    openModal("#auth-modal");
+    return;
+  }
   const overlay = $("#call-overlay");
   if (!overlay) return;
   overlay.classList.add("is-open");
@@ -664,7 +708,11 @@ $("#close-sidebar")?.addEventListener("click", () =>
   $("#sidebar")?.classList.remove("is-open"),
 );
 $("#new-chat")?.addEventListener("click", () => {
-  activeSessionId = "session-" + Math.random().toString(36).substring(2, 9);
+  activeSessionId = null;
+  localStorage.removeItem(getActiveSessionKey());
+  if (activeSocket) activeSocket.close();
+  activeSocket = null;
+  socketSessionId = null;
   if (messages) {
     messages.innerHTML = `<div class="welcome-message"><span class="mini-logo">N</span><h1>What can I help with?</h1><p>Start a new conversation by typing below or switching to voice.</p></div>`;
   }
@@ -678,7 +726,13 @@ $("#voice-mute")?.addEventListener("click", () => {
   state.muted = !state.muted;
   const muteText = $("#voice-mute span");
   if (muteText) muteText.textContent = state.muted ? "Unmute" : "Mute";
-  if (state.muted && window.NOTAudio) window.NOTAudio.stopListening();
+  if (state.muted && window.NOTAudio) {
+    window.NOTAudio.stopListening();
+  } else if (!state.muted && window.NOTAudio) {
+    window.NOTAudio.startListening((text) => {
+      if (text) sendMessageToBackend(text);
+    });
+  }
   showToast(state.muted ? "Microphone muted" : "Microphone active");
 });
 
@@ -829,7 +883,17 @@ $("#call-mute")?.addEventListener("click", (event) => {
   const callStatus = $("#call-status");
   if (callStatus)
     callStatus.textContent = muted ? "Microphone muted" : "Listening…";
-  if (muted && window.NOTAudio) window.NOTAudio.stopListening();
+  if (muted && window.NOTAudio) {
+    window.NOTAudio.stopListening();
+  } else if (!muted && window.NOTAudio) {
+    window.NOTAudio.startListening((text) => {
+      if (text) {
+        const callStatus = $("#call-status");
+        if (callStatus) callStatus.textContent = `You: "${text}"`;
+        sendMessageToBackend(text);
+      }
+    });
+  }
 });
 
 document.addEventListener("keydown", (event) => {
