@@ -593,6 +593,11 @@ function clearAttachment() {
 }
 
 function startCall() {
+  if (!state.signedIn || !localStorage.getItem("firebase_id_token")) {
+    showToast("Please sign in before starting a live call.");
+    openModal("#auth-modal");
+    return;
+  }
   const overlay = $("#call-overlay");
   if (!overlay) return;
   overlay.classList.add("is-open");
@@ -821,7 +826,17 @@ $("#call-mute")?.addEventListener("click", (event) => {
   const callStatus = $("#call-status");
   if (callStatus)
     callStatus.textContent = muted ? "Microphone muted" : "Listening…";
-  if (muted && window.NOTAudio) window.NOTAudio.stopListening();
+  if (muted && window.NOTAudio) {
+    window.NOTAudio.stopListening();
+  } else if (!muted && window.NOTAudio) {
+    window.NOTAudio.startListening((text) => {
+      if (text) {
+        const callStatus = $("#call-status");
+        if (callStatus) callStatus.textContent = `You: "${text}"`;
+        sendMessageToBackend(text);
+      }
+    });
+  }
 });
 
 document.addEventListener("keydown", (event) => {
