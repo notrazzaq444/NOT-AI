@@ -1,6 +1,8 @@
 """Orchestrator - tool-call loop with streaming & memory."""
 from __future__ import annotations
+import asyncio
 import json
+import uuid
 from typing import AsyncIterator
 from app.ai.provider_base import BaseProvider, Message
 from app.ai.tool_registry import TOOL_SCHEMAS, execute_tool
@@ -21,7 +23,7 @@ class Orchestrator:
 
     async def run(self, history: list[Message], user_timezone: str = "UTC", user_language: str = "en") -> AsyncIterator[dict]:
         latest_user_msg = history[-1].content if history and history[-1].role == "user" else ""
-        memories = self.memory.search_memory(latest_user_msg, n_results=3)
+        memories = await asyncio.to_thread(\n            self.memory.search_memory, latest_user_msg, n_results=3\n        )
         
         memory_context = ""
         if memories:
@@ -69,7 +71,7 @@ class Orchestrator:
                     tc.arguments["timezone"] = user_timezone
                 
                 yield {"type": "tool_call", "name": tc.name, "args": tc.arguments}
-                result = execute_tool(tc.name, tc.arguments)
+                result = await asyncio.to_thread(execute_tool, tc.name, tc.arguments)
                 yield {"type": "tool_result", "name": tc.name, "result": result}
                 messages.append(Message(role="tool", content=result, tool_name=tc.name, tool_call_id=tc.id, name=tc.name))
 
