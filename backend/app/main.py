@@ -625,15 +625,16 @@ async def text_to_speech(
 
 
 # Reuse the provider and orchestrator between WebSocket reconnects.
-# Groq is the configured primary provider; Gemini remains a fallback.
+# Gemini is the preferred provider; Groq is only a fallback.
 @lru_cache(maxsize=1)
 def get_orchestrator() -> Orchestrator:
-    if settings.groq_api_key:
-        provider = GroqProvider()
-    elif settings.gemini_api_key:
+    if settings.gemini_api_key:
         provider = GeminiProvider()
+    elif settings.groq_api_key:
+        provider = GroqProvider()
     else:
-        raise RuntimeError("Configure NOT_GROQ_API_KEY or NOT_GEMINI_API_KEY")
+        raise RuntimeError("Configure NOT_GEMINI_API_KEY or NOT_GROQ_API_KEY")
+    logger.info("NOT AI provider selected: %s", provider.name)
     return Orchestrator(provider)
 
 
