@@ -14,7 +14,13 @@ window.NOTAudio = (function () {
   let silenceFrame = 0;
   let lastVoiceTime = 0;
 
-  function authToken() {
+  async function authToken() {
+    const user = (typeof firebase !== "undefined" && firebase.auth?.().currentUser) || null;
+    if (user) {
+      const freshToken = await user.getIdToken(true);
+      localStorage.setItem("firebase_id_token", freshToken);
+      return freshToken;
+    }
     return localStorage.getItem("firebase_id_token") || "";
   }
 
@@ -47,7 +53,7 @@ window.NOTAudio = (function () {
   async function startListening(callback, options = {}) {
     if (isRecording) return true;
     if (typeof callback === "function") onResult = callback;
-    if (!authToken()) {
+    if (!(await authToken())) {
       emit("error", "Please sign in before using voice.");
       return false;
     }
@@ -78,7 +84,7 @@ window.NOTAudio = (function () {
       };
       mediaRecorder.onstop = async () => {
         const blob = new Blob(audioChunks, { type: mediaRecorder?.mimeType || "audio/webm" });
-        const token = authToken();
+        const token = await authToken();
         try {
           if (blob.size) {
             const form = new FormData();
@@ -154,13 +160,18 @@ window.NOTAudio = (function () {
   }
 
   async function speak(text, voice) {
-    if (!text || !text.trim() || !authToken()) return;
+    if (!text || !text.trim()) return;
+    const token = await authToken();
+    if (!token) {
+      emit("error", "Please sign in again to use NOT voice.");
+      return;
+    }
     interrupt();
     try {
       const params = new URLSearchParams({ text });
       if (voice) params.set("voice", voice);
       const response = await fetch("/api/tts?" + params.toString(), {
-        headers: { Authorization: "Bearer " + authToken() },
+        headers: { Authorization: "Bearer " + token },
       });
       if (!response.ok) throw new Error("Speech generation failed (" + response.status + ")");
       const blob = await response.blob();
