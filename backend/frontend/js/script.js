@@ -168,10 +168,11 @@ async function handleFirebaseUserSession(user) {
     }
   } else {
     state.signedIn = false;
+    const previousUid = localStorage.getItem("not-user-uid") || "default";
     localStorage.removeItem("firebase_id_token");
     localStorage.removeItem("not-token");
     localStorage.removeItem("not-user-uid");
-    localStorage.removeItem("not_active_session_" + (localStorage.getItem("not-user-uid") || "default"));
+    localStorage.removeItem("not_active_session_" + previousUid);
     updateAuthUI();
   }
 }
