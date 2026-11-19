@@ -601,7 +601,7 @@ async function sendMessageToBackend(text) {
   const textDiv = assistantArticle.querySelector(".message-text");
   const currentUser = (typeof firebase !== "undefined" && firebase.auth?.().currentUser) || null;
   const token = currentUser
-    ? await currentUser.getIdToken(true)
+    ? await currentUser.getIdToken()
     : (localStorage.getItem("firebase_id_token") || "");
 
   if (!token) {
